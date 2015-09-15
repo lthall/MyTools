@@ -37,7 +37,7 @@ classdef HFSS_Tools
                 obj.sources(aa).modes = 1;
                 obj.sources(aa).excitation_E = 1;
                 obj.sources(aa).position = [0,0,0];
-                obj.sources(aa).groups = 1;
+                obj.sources(aa).groups = 0;
             end
         end
         
@@ -430,7 +430,7 @@ classdef HFSS_Tools
             else
                 hfss_script = [];
                 [ hfss_script ] = obj.HFSS_Open( hfss_script );
-                file_name = [pwd,'\sparam.', 's', int2str(obj.source_number), 'p'];
+                file_name = [pwd,'\sparam_' obj.active_design '.', 's', int2str(obj.source_number), 'p']; 
                 [ hfss_script ] = obj.HFSS_S_Parameters( hfss_script, file_name );
                 fileID = fopen('run_me_s_param.vbs', 'w');
                 fprintf(fileID, hfss_script);
@@ -463,7 +463,7 @@ classdef HFSS_Tools
                 if nargin == 2
                     file_name_SnP = file_name;
                 else
-                    file_name_SnP = [pwd,'\sparam.', 's', int2str(obj.source_number), 'p'];
+                    file_name_SnP = [pwd,'\sparam_' obj.active_design '.', 's', int2str(obj.source_number), 'p'];
                 end
                 obj.S_matrix = obj.import_SnP(file_name_SnP);
             end
@@ -659,6 +659,120 @@ classdef HFSS_Tools
                 xlabel('frequency GHz');
                 legend(Snn_legend_text);
             end
+        end
+        
+        
+        function [frequency, S, legend_text] = print_S_param_all(obj)
+            %PRINT_S_PARAM displays the S-parameter data
+            %   This function displays and returns the S-parameter data.
+            
+            S_pnt = 0;
+            for a = 1:obj.source_number
+                for b = 1:obj.source_number
+                    S_pnt = S_pnt + 1;
+                    for c = 1:length(obj.S_matrix)
+                        frequency(c) = obj.S_matrix(c).frequency;
+                        S(c,S_pnt) = obj.S_matrix(c).S(a,b);
+                        if a == b
+                            Snn(c,a) = obj.S_matrix(c).S(a,b);
+                            Snn_legend_text{a} = ['S_{', int2str(a), int2str(b), '}'];
+                        end
+                    end
+                    legend_text{S_pnt} = ['S_{', int2str(a), int2str(b), '}'];
+                end
+            end
+                   
+            figure
+            subplot(2,1,1);
+            hold on
+            plot(frequency/10^9,20*log10(abs(S)));
+            ylabel('Mag dB');
+            grid on;
+            subplot(2,1,2);
+            hold on
+            plot(frequency/10^9,angle(S)/HFSS_Tools.degrees);
+            ylabel('Angle Deg');
+            grid on;
+            xlabel('frequency GHz');
+            legend(legend_text);
+
+            figure
+            obj.MrSmith;
+            plot(Snn);
+
+            figure
+            subplot(2,1,1);
+            hold on
+            plot(frequency/10^9,20*log10(abs(Snn)));
+            ylabel('Mag dB');
+            grid on;
+            subplot(2,1,2);
+            hold on
+            plot(frequency/10^9,angle(Snn)/HFSS_Tools.degrees);
+            ylabel('Angle Deg');
+            grid on;
+            xlabel('frequency GHz');
+            legend(Snn_legend_text);
+        end
+        
+        
+        function [frequency, S, legend_text] = print_S_param_group(obj, group)
+            %PRINT_S_PARAM displays the S-parameter data
+            %   This function displays and returns the S-parameter data.
+            
+            S_pnt = 0;
+            legend_pnt = 0;
+            for a = 1:obj.source_number
+                for b = 1:obj.source_number
+                    if (ismember(group, obj.sources(a).groups) && ismember(group, obj.sources(b).groups))
+                        S_pnt = S_pnt + 1;
+                        for c = 1:length(obj.S_matrix)
+                            frequency(c) = obj.S_matrix(c).frequency;
+                            S(c,S_pnt) = obj.S_matrix(c).S(a,b);
+                            if a == b
+                                if c == 1
+                                    legend_pnt = legend_pnt + 1;
+                                end
+                                Snn(c,a) = obj.S_matrix(c).S(a,b);
+                                Snn_legend_text{legend_pnt} = ['S_{', int2str(a), int2str(b), '}'];
+                            end
+                        end
+                        legend_text{S_pnt} = ['S_{', int2str(a), int2str(b), '}'];
+                    end
+                end
+            end
+                   
+            figure
+            subplot(2,1,1);
+            hold on
+            plot(frequency/10^9,20*log10(abs(S)));
+            ylabel('Mag dB');
+            grid on;
+            subplot(2,1,2);
+            hold on
+            plot(frequency/10^9,angle(S)/HFSS_Tools.degrees);
+            ylabel('Angle Deg');
+            grid on;
+            xlabel('frequency GHz');
+            legend(legend_text);
+
+            figure
+            obj.MrSmith;
+            plot(Snn);
+
+            figure
+            subplot(2,1,1);
+            hold on
+            plot(frequency/10^9,20*log10(abs(Snn)));
+            ylabel('Mag dB');
+            grid on;
+            subplot(2,1,2);
+            hold on
+            plot(frequency/10^9,angle(Snn)/HFSS_Tools.degrees);
+            ylabel('Angle Deg');
+            grid on;
+            xlabel('frequency GHz');
+            legend(Snn_legend_text);
         end
         
         
@@ -876,6 +990,17 @@ classdef HFSS_Tools
                 end
             end
         end
+              
+        
+        function [ obj ] = set_source_max_rE( obj, theta, phi, polarization )
+
+            if strcmp(polarization,'theta')
+                obj = obj.set_source_max_rE_theta( theta, phi );
+            elseif strcmp(polarization,'phi')
+                obj = obj.set_source_max_rE_phi( theta, phi ); 
+            end
+            
+        end       
         
         
         function [ beam_pattern ] = array_beam_pattern( obj, group )
@@ -1615,6 +1740,42 @@ classdef HFSS_Tools
         end
         
         
+        function [ Earth_X, Earth_Y, Earth_Z, DCM_BE ] = Vector_Body2Earth( Roll_A, Pitch_A, Yaw_A, Body_X, Body_Y, Body_Z )
+        %VECTOR_BODY2EARTH Summary of this function goes here
+        %   Detailed explanation goes here
+
+        % Earth_X = Body_X * cos(Pitch_A) * cos(Yaw_A) ...
+        %     + Body_Y * (sin(Roll_A) * sin(Pitch_A) * cos(Yaw_A) - cos(Roll_A) * sin(Yaw_A)) ...
+        %     + Body_Z * (cos(Roll_A) * sin(Pitch_A) * cos(Yaw_A) + sin(Roll_A) * sin(Yaw_A));
+        % 
+        % Earth_Y = Body_X * cos(Pitch_A) * sin(Yaw_A) ...
+        %     + Body_Y * (sin(Roll_A) * sin(Pitch_A) * sin(Yaw_A) + cos(Roll_A) * cos(Yaw_A)) ...
+        %     + Body_Z * (cos(Roll_A) * sin(Pitch_A) * sin(Yaw_A) - sin(Roll_A) * cos(Yaw_A));
+        % 
+        % Earth_Z = - Body_X * sin(Pitch_A) ...
+        %     + Body_Y * sin(Roll_A) * cos(Pitch_A) ...
+        %     + Body_Z * cos(Roll_A) * cos(Pitch_A);
+
+        DCM_BE = [cos(Pitch_A) * cos(Yaw_A) ...
+            (sin(Roll_A) * sin(Pitch_A) * cos(Yaw_A) - cos(Roll_A) * sin(Yaw_A)) ...
+            (cos(Roll_A) * sin(Pitch_A) * cos(Yaw_A) + sin(Roll_A) * sin(Yaw_A)); ...
+            ...
+            cos(Pitch_A) * sin(Yaw_A) ...
+            (sin(Roll_A) * sin(Pitch_A) * sin(Yaw_A) + cos(Roll_A) * cos(Yaw_A)) ...
+            (cos(Roll_A) * sin(Pitch_A) * sin(Yaw_A) - sin(Roll_A) * cos(Yaw_A)); ...
+            ...
+            - sin(Pitch_A) ...
+            sin(Roll_A) * cos(Pitch_A) ...
+            cos(Roll_A) * cos(Pitch_A)];
+
+            Earth_XYZ = DCM_BE * [Body_X; Body_Y; Body_Z];
+
+            Earth_X = Earth_XYZ(1);
+            Earth_Y = Earth_XYZ(2);
+            Earth_Z = Earth_XYZ(3);
+        end 
+        
+        
         function [ realized_gain_theta, frequency ] = get_gain_theta(beam_pattern, theta, phi)
             %GET_GAIN_THETA Find the realised theta gain of a beam pattern
             %  This function finds returns the theta polarised gain in the
@@ -1752,7 +1913,7 @@ classdef HFSS_Tools
                 frequency(aa) = beam_pattern(aa).frequency;
                 
                 [ az, el ] = HFSS_Tools.theta_phi_to_az_el( theta(aa), phi(aa) );
-                [ beam_pattern_temp ] = HFSS_Tools.rotate_axis(beam_pattern(aa), 0, -el, -az);
+                [ beam_pattern_temp ] = HFSS_Tools.rotate_axis(beam_pattern(aa), 0, -el, az);
                 
                 level = 0.5*realised_gain(aa);
                 contour_temp = contourc(beam_pattern_temp.theta(1,:), beam_pattern_temp.phi(:,1).', beam_pattern_temp.realized_gain_total, [level, level]);
@@ -1770,8 +1931,8 @@ classdef HFSS_Tools
                     theta_max = max(contour_3db(bb).data(1,:));
                     phi_min = min(contour_3db(bb).data(2,:));
                     phi_max = max(contour_3db(bb).data(2,:));
-                    if theta_min < theta(aa) && theta_max > theta(aa) && ...
-                            phi_min < phi(aa) && phi_max > phi(aa)
+                    if theta_min < pi/2 && theta_max > pi/2 && ...
+                            phi_min < 0 && phi_max > 0
                         theta_beam_width(aa) = theta_max - theta_min;
                         phi_beam_width(aa) = phi_max - phi_min;
                     end
@@ -1789,7 +1950,7 @@ classdef HFSS_Tools
             %mask = poly2mask(x,y,12,12)
             %inpolygon
             
-            side_lobe_gain = ones(length(beam_pattern),1);
+            side_lobe_gain = zeros(length(beam_pattern),1);
             theta = ones(length(beam_pattern),1);
             phi = ones(length(beam_pattern),1);
             frequency = ones(length(beam_pattern),1);
@@ -1816,6 +1977,7 @@ classdef HFSS_Tools
                     contour_temp = contourc(mesh_x(1,:), mesh_y(:,1).', beam_pattern_temp.realized_gain_total, [level, level]);
                     contour_pnt = 0;
                     pnt = 1;
+                    contour_3db = [];
                     while pnt < length(contour_temp)
                         contour_pnt = contour_pnt + 1;
                         contour_3db(contour_pnt).data = contour_temp(:,pnt+1:contour_temp(2,pnt)+pnt);
@@ -1824,15 +1986,24 @@ classdef HFSS_Tools
                     if length(contour_3db) > 1
                         for bb = 1:length(contour_3db)
                             data = contour_3db(bb).data;
-                            if abs(sum(unwrap(diff(angle((data(1,:) - pnt_phi) + (data(2,:) - pnt_theta)*1j))))) < pi;
-                                data = round(data);
-                                mask = poly2mask(data(1,:),data(2,:),size_x,size_y);
-                                realized_gain_total = beam_pattern(aa).realized_gain_total.*(1-mask);
+                            if abs(sum(wrapToPi(diff(angle((data(1,:) - pnt_phi) + (data(2,:) - pnt_theta)*1j))))) > pi;
+%                                 figure
+%                                 surf(beam_pattern(aa).phi/HFSS_Tools.degrees, beam_pattern(aa).theta/HFSS_Tools.degrees, dBp(beam_pattern_temp.realized_gain_total),'EdgeColor','none');
+%                                 shading interp;
+%                                 figure
+%                                 hold on;
+%                                 contour(beam_pattern(aa).phi/HFSS_Tools.degrees, beam_pattern(aa).theta/HFSS_Tools.degrees, dBp(beam_pattern_temp.realized_gain_total), dBp([level, level]));
+%                                 contour3(beam_pattern(aa).phi/HFSS_Tools.degrees, beam_pattern(aa).theta/HFSS_Tools.degrees, dBp(beam_pattern_temp.realized_gain_total)-20, 50);
+                                data_round = round(data);
+                                mask = poly2mask(data_round(1,:),data_round(2,:),size_x,size_y);
+                                realized_gain_total = beam_pattern_temp.realized_gain_total.*(1-mask);
                                 [~, index] = max(realized_gain_total(:));
-                                side_lobe_gain(aa) = beam_pattern(aa).realized_gain_total(index);
-                                theta(aa) = beam_pattern(aa).theta(index);
-                                phi(aa) = beam_pattern(aa).phi(index);
-                                frequency(aa) = beam_pattern(aa).frequency;
+                                if side_lobe_gain(aa) < beam_pattern(aa).realized_gain_total(index)
+                                    side_lobe_gain(aa) = beam_pattern(aa).realized_gain_total(index);
+                                    theta(aa) = beam_pattern(aa).theta(index);
+                                    phi(aa) = beam_pattern(aa).phi(index);
+                                    frequency(aa) = beam_pattern(aa).frequency;
+                                end
                                 found_sidelobe = 1;
                             end
                         end
@@ -1971,6 +2142,7 @@ classdef HFSS_Tools
                 Gamma = (Zed - 1)./(Zed + 1);
             end
         end
+
         
     end
     
@@ -1998,31 +2170,25 @@ classdef HFSS_Tools
         function [ hfss_script ] = HFSS_Set_Mode_Sources(obj, hfss_script )
             %HFSS_SET_MODE_SOURCES generates the VB script to set sorces in HFSS
             
-            for aa = 1:obj.source_number;
-                names{aa} = obj.sources(aa).name;
-            end
-            
-            [~, name_order] = sort(names);
-            
             hfss_script = [hfss_script, 'Set oModule = oDesign.GetModule("Solutions") \n'];
             hfss_script = [hfss_script, 'oModule.EditSources "TotalFields", Array("NAME:Names"'];
             for aa = 1:obj.source_number;
-                hfss_script = [hfss_script, ', "', obj.sources(name_order(aa)).name, '"'];
+                hfss_script = [hfss_script, ', "', obj.sources(aa).name, '"'];
             end
             hfss_script = [hfss_script, '), _ \n'];
             hfss_script = [hfss_script, '  Array("NAME:Modes"'];
             for aa = 1:obj.source_number;
-                hfss_script = [hfss_script, ', "', int2str(obj.sources(name_order(aa)).modes), '"'];
+                hfss_script = [hfss_script, ', "', int2str(obj.sources(aa).modes), '"'];
             end
             hfss_script = [hfss_script, '), _ \n'];
             hfss_script = [hfss_script, '  Array("NAME:Magnitudes"'];
             for aa = 1:obj.source_number;
-                hfss_script = [hfss_script, ', "', int2str(abs(obj.sources(name_order(aa)).excitation_E)), 'W"'];
+                hfss_script = [hfss_script, ', "', int2str(abs(obj.sources(aa).excitation_E)), 'W"'];
             end
             hfss_script = [hfss_script, '), _ \n'];
             hfss_script = [hfss_script, '  Array("NAME:Phases"'];
             for aa = 1:obj.source_number;
-                hfss_script = [hfss_script, ', "', int2str(angle(obj.sources(name_order(aa)).excitation_E)), 'rad"'];
+                hfss_script = [hfss_script, ', "', int2str(angle(obj.sources(aa).excitation_E)), 'rad"'];
             end
             hfss_script = [hfss_script, '), _ \n'];
             hfss_script = [hfss_script, '  false \n'];
@@ -2032,32 +2198,26 @@ classdef HFSS_Tools
         function [ hfss_script ] = HFSS_Set_Terminal_Sources(obj, hfss_script )
             %HFSS_SET_TERMINAL_SOURCES generates the VB script to set sorces in HFSS
             
-            for aa = 1:obj.source_number;
-                names{aa} = obj.sources(aa).name;
-            end
-            
-            [~, name_order] = sort(names);
-            
             hfss_script = [hfss_script, 'Set oModule = oDesign.GetModule("Solutions") \n'];
             hfss_script = [hfss_script, 'oModule.EditSources "TotalFields",  _ \n'];
             hfss_script = [hfss_script, '  Array("NAME:Names"'];
             for aa = 1:obj.source_number;
-                hfss_script = [hfss_script, ', "', obj.sources(name_order(aa)).name, '"'];
+                hfss_script = [hfss_script, ', "', obj.sources(aa).name, '"'];
             end
             hfss_script = [hfss_script, '), _ \n'];
             hfss_script = [hfss_script, '  Array("NAME:Terminals"'];
             for aa = 1:obj.source_number;
-                hfss_script = [hfss_script, ', ', int2str(obj.sources(name_order(aa)).modes)];
+                hfss_script = [hfss_script, ', ', int2str(obj.sources(aa).modes)];
             end
             hfss_script = [hfss_script, '), _ \n'];
             hfss_script = [hfss_script, '  Array("NAME:Magnitudes"'];
             for aa = 1:obj.source_number;
-                hfss_script = [hfss_script, ', "', int2str(abs(obj.sources(name_order(aa)).excitation_E)), 'W"'];
+                hfss_script = [hfss_script, ', "', int2str(abs(obj.sources(aa).excitation_E)), 'W"'];
             end
             hfss_script = [hfss_script, '), _ \n'];
             hfss_script = [hfss_script, '  Array("NAME:Phases"'];
             for aa = 1:obj.source_number;
-                hfss_script = [hfss_script, ', "', int2str(angle(obj.sources(name_order(aa)).excitation_E)), 'rad"'];
+                hfss_script = [hfss_script, ', "', int2str(angle(obj.sources(aa).excitation_E)), 'rad"'];
             end
             hfss_script = [hfss_script, '), _ \n'];
             hfss_script = [hfss_script, '  Array("NAME:Terminated"'];
@@ -2072,25 +2232,19 @@ classdef HFSS_Tools
         function [ hfss_script ] = DESIGNER_Set_Sources(obj, hfss_script )
             %HFSS_SET_TERMINAL_SOURCES generates the VB script to set sorces in HFSS
             
-            for aa = 1:obj.source_number;
-                names{aa} = obj.sources(aa).name;
-            end
-            
-            [~, name_order] = sort(names);
-            
             hfss_script = [hfss_script, 'Set oModule = oDesign.GetModule("Excitations") \n'];
             hfss_script = [hfss_script, 'oModule.EditExcitations Array("NAME:Excitations",  _ \n'];
             for aa = 1:obj.source_number;
                 hfss_script = [hfss_script, '   Array('];
-                hfss_script = [hfss_script, '"NAME:', obj.sources(name_order(aa)).name, '"'];
-                hfss_script = [hfss_script, ', "', int2str(angle(obj.sources(name_order(aa)).excitation_E)), 'rad"'];
-                hfss_script = [hfss_script, ', "', int2str(abs(obj.sources(name_order(aa)).excitation_E)), 'V"),  _ \n'];
+                hfss_script = [hfss_script, '"NAME:', obj.sources(aa).name, '"'];
+                hfss_script = [hfss_script, ', "', int2str(angle(obj.sources(aa).excitation_E)), 'rad"'];
+                hfss_script = [hfss_script, ', "', int2str(abs(obj.sources(aa).excitation_E)), 'V"),  _ \n'];
             end
             hfss_script = [hfss_script(1:end-7), '),  _ \n'];
             hfss_script = [hfss_script, '   Array("NAME:PostProcess",  _ \n'];
             for aa = 1:obj.source_number;
                 hfss_script = [hfss_script, '   Array('];
-                hfss_script = [hfss_script, '"NAME:', obj.sources(name_order(aa)).name, '", true, "0mm", "50ohm + 0i ohm"),  _ \n'];
+                hfss_script = [hfss_script, '"NAME:', obj.sources(aa).name, '", true, "0mm", "50ohm + 0i ohm"),  _ \n'];
             end
             hfss_script = [hfss_script(1:end-7), '),  _ \n'];
             hfss_script = [hfss_script, '  "GapSource,IncidentVoltage",  _ \n'];
@@ -2240,8 +2394,7 @@ classdef HFSS_Tools
             hfss_script = [hfss_script, 'oModule.DeleteReports Array("Matlab Table") \n'];
             hfss_script = [hfss_script, ' \n'];
         end
-        
-        
+         
         function [ hfss_script ] = HFSS_Save_Parameters(hfss_script, param_name, param_value, param_units )
             %HFSS_SAVE_PARAMETERS generates the VB script to set parameters in HFSS
             
@@ -2255,7 +2408,7 @@ classdef HFSS_Tools
             hfss_script = [hfss_script, 'Array("NAME:', param_name, '", "Value:=", "', num2str(param_value, 10), param_units, '")))) \n'];
             hfss_script = [hfss_script, ' \n'];
         end
-        
+       
     end
     
 end
