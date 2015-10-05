@@ -430,7 +430,7 @@ classdef HFSS_Tools
             else
                 hfss_script = [];
                 [ hfss_script ] = obj.HFSS_Open( hfss_script );
-                file_name = [pwd,'\sparam_' obj.active_design '.', 's', int2str(obj.source_number), 'p']; 
+                file_name = [pwd,'\sparam_', obj.project_name, '_', obj.active_design, '.', 's', int2str(obj.source_number), 'p'];
                 [ hfss_script ] = obj.HFSS_S_Parameters( hfss_script, file_name );
                 fileID = fopen('run_me_s_param.vbs', 'w');
                 fprintf(fileID, hfss_script);
@@ -447,7 +447,7 @@ classdef HFSS_Tools
             %   working directory.
             
             questdlg(['Please export S-Parameters to : ', pwd,'\sparam.', 's', int2str(obj.source_number), 'p'], 'Click when ready', 'OK', 'OK');
-         end
+        end
         
         
         function obj = import_S_parameters(obj, file_name)
@@ -463,7 +463,7 @@ classdef HFSS_Tools
                 if nargin == 2
                     file_name_SnP = file_name;
                 else
-                    file_name_SnP = [pwd,'\sparam_' obj.active_design '.', 's', int2str(obj.source_number), 'p'];
+                    file_name_SnP = [pwd,'\sparam_', obj.project_name, '_', obj.active_design, '.', 's', int2str(obj.source_number), 'p'];
                 end
                 obj.S_matrix = obj.import_SnP(file_name_SnP);
             end
@@ -502,7 +502,7 @@ classdef HFSS_Tools
                             obj.sources(bb).excitation_E = 0;
                         end
                     end
-                    file_name = [pwd, '\', obj.active_design, '_', int2str(aa)];
+                    file_name = [pwd,'\fields_', obj.project_name, '_', obj.active_design, '_', int2str(aa)];
                     switch obj.source_type
                         case 'Modal'
                             [ hfss_script ] = obj.HFSS_Set_Mode_Sources( hfss_script );
@@ -520,7 +520,7 @@ classdef HFSS_Tools
                         [ hfss_script ] = obj.HFSS_Remove_Matlab( hfss_script );
                     case 'Designer'
                         [ hfss_script ] = obj.DESIGNER_Remove_Matlab( hfss_script );
-
+                        
                 end
                 fileID = fopen('run_me_get_fields.vbs', 'w');
                 fprintf(fileID, hfss_script);
@@ -541,7 +541,7 @@ classdef HFSS_Tools
                 if nargin == 2
                     file_name_fields = file_name;
                 else
-                    file_name_fields = [pwd, '\', obj.active_design, '_', int2str(aa)];
+                    file_name_fields = [pwd,'\fields_', obj.project_name, '_', obj.active_design, '_', int2str(aa)];
                 end
                 antennas(aa).parameters = obj.import_fields(file_name_fields);
             end
@@ -577,12 +577,7 @@ classdef HFSS_Tools
                     antennas(aa).theta(bb,:) = antennas(aa).parameters(bb).output(1).value;
                     antennas(aa).rE_phi(bb,:) = antennas(aa).parameters(bb).output(2).value;
                     antennas(aa).rE_theta(bb,:) = antennas(aa).parameters(bb).output(3).value;
-                    antennas(aa).realized_gain_phi(bb,:) = antennas(aa).parameters(bb).output(4).value;
-                    antennas(aa).realized_gain_theta(bb,:) = antennas(aa).parameters(bb).output(5).value;
                 end
-                gain_adjust = mean(mean(abs(antennas(aa).realized_gain_theta./abs(antennas(aa).rE_theta).^2)));
-                antennas(aa).rE_phi = antennas(aa).rE_phi.*sqrt(gain_adjust);
-                antennas(aa).rE_theta = antennas(aa).rE_theta.*sqrt(gain_adjust);
             end
             
             phi = antennas(1).phi(freq(1).pnts,:);
@@ -593,9 +588,6 @@ classdef HFSS_Tools
                 for bb = 1:length(antennas)
                     beams(aa).antenna(bb).rE_phi = antennas(bb).rE_phi(freq(aa).pnts,:);
                     beams(aa).antenna(bb).rE_theta = antennas(bb).rE_theta(freq(aa).pnts,:);
-                    % we may not need these
-                    beams(aa).antenna(bb).realized_gain_phi = antennas(bb).realized_gain_phi(freq(aa).pnts,:);
-                    beams(aa).antenna(bb).realized_gain_theta = antennas(bb).realized_gain_theta(freq(aa).pnts,:);
                 end
             end
             obj.beam_patterns = beams;
@@ -681,7 +673,7 @@ classdef HFSS_Tools
                     legend_text{S_pnt} = ['S_{', int2str(a), int2str(b), '}'];
                 end
             end
-                   
+            
             figure
             subplot(2,1,1);
             hold on
@@ -695,11 +687,11 @@ classdef HFSS_Tools
             grid on;
             xlabel('frequency GHz');
             legend(legend_text);
-
+            
             figure
             obj.MrSmith;
             plot(Snn);
-
+            
             figure
             subplot(2,1,1);
             hold on
@@ -741,7 +733,7 @@ classdef HFSS_Tools
                     end
                 end
             end
-                   
+            
             figure
             subplot(2,1,1);
             hold on
@@ -755,11 +747,11 @@ classdef HFSS_Tools
             grid on;
             xlabel('frequency GHz');
             legend(legend_text);
-
+            
             figure
             obj.MrSmith;
             plot(Snn);
-
+            
             figure
             subplot(2,1,1);
             hold on
@@ -990,17 +982,17 @@ classdef HFSS_Tools
                 end
             end
         end
-              
+        
         
         function [ obj ] = set_source_max_rE( obj, theta, phi, polarization )
-
+            
             if strcmp(polarization,'theta')
                 obj = obj.set_source_max_rE_theta( theta, phi );
             elseif strcmp(polarization,'phi')
-                obj = obj.set_source_max_rE_phi( theta, phi ); 
+                obj = obj.set_source_max_rE_phi( theta, phi );
             end
             
-        end       
+        end
         
         
         function [ beam_pattern ] = array_beam_pattern( obj, group )
@@ -1028,17 +1020,14 @@ classdef HFSS_Tools
                         tx_power = tx_power + abs(obj.sources(bb).excitation_E(aa)^2);
                     end
                 end
-                rE_phi = rE_phi.*sqrt(1/tx_power);
-                rE_theta = rE_theta.*sqrt(1/tx_power);
-                
                 beam_pattern(aa).frequency = obj.beam_patterns(aa).frequency;
                 beam_pattern(aa).phi = obj.beam_patterns(aa).phi;
                 beam_pattern(aa).theta = obj.beam_patterns(aa).theta;
                 beam_pattern(aa).rE_phi = rE_phi;
                 beam_pattern(aa).rE_theta = rE_theta;
-                beam_pattern(aa).realized_gain_phi = abs(rE_phi.^2);
-                beam_pattern(aa).realized_gain_theta = abs(rE_theta.^2);
-                beam_pattern(aa).realized_gain_total = abs(rE_phi.^2+rE_theta.^2);
+                beam_pattern(aa).realized_gain_phi = (2*pi*abs(rE_phi.^2))./(obj.wave_impedance()*tx_power);
+                beam_pattern(aa).realized_gain_theta = (2*pi*abs(rE_theta.^2))./(obj.wave_impedance()*tx_power);
+                beam_pattern(aa).realized_gain_total = (2*pi*abs(rE_phi.^2+rE_theta.^2))./(obj.wave_impedance()*tx_power);
             end
         end
         
@@ -1360,10 +1349,31 @@ classdef HFSS_Tools
         end
         
         
-        function [ Free_Space_Velocity_Of_Light ] = c0()
-            %C0 free space velocity of light
+        function Free_Space_Velocity_Of_Light=c0()
+            %c0 returns the free space velocity of light.
             
-            Free_Space_Velocity_Of_Light = 2.99792458e8;
+            Free_Space_Velocity_Of_Light=2.99792458e8;
+        end
+        
+        
+        function Permeability_of_Free_Space=u0()
+            %u0 returns the permeability of free space.
+            
+            Permeability_of_Free_Space = 4*pi*1e-7;
+        end
+        
+        
+        function Permittivity_of_Free_Space=e0()
+            %e0 returns the permittivity of free space.
+            
+            Permittivity_of_Free_Space = 1/(HFSS_Tools.u0()*HFSS_Tools.c0^2);
+        end
+        
+        
+        function Impedance_of_Free_Space=wave_impedance()
+            %e0 returns the permittivity of free space.
+            
+            Impedance_of_Free_Space = HFSS_Tools.u0()*HFSS_Tools.c0;
         end
         
         
@@ -1741,39 +1751,39 @@ classdef HFSS_Tools
         
         
         function [ Earth_X, Earth_Y, Earth_Z, DCM_BE ] = Vector_Body2Earth( Roll_A, Pitch_A, Yaw_A, Body_X, Body_Y, Body_Z )
-        %VECTOR_BODY2EARTH Summary of this function goes here
-        %   Detailed explanation goes here
-
-        % Earth_X = Body_X * cos(Pitch_A) * cos(Yaw_A) ...
-        %     + Body_Y * (sin(Roll_A) * sin(Pitch_A) * cos(Yaw_A) - cos(Roll_A) * sin(Yaw_A)) ...
-        %     + Body_Z * (cos(Roll_A) * sin(Pitch_A) * cos(Yaw_A) + sin(Roll_A) * sin(Yaw_A));
-        % 
-        % Earth_Y = Body_X * cos(Pitch_A) * sin(Yaw_A) ...
-        %     + Body_Y * (sin(Roll_A) * sin(Pitch_A) * sin(Yaw_A) + cos(Roll_A) * cos(Yaw_A)) ...
-        %     + Body_Z * (cos(Roll_A) * sin(Pitch_A) * sin(Yaw_A) - sin(Roll_A) * cos(Yaw_A));
-        % 
-        % Earth_Z = - Body_X * sin(Pitch_A) ...
-        %     + Body_Y * sin(Roll_A) * cos(Pitch_A) ...
-        %     + Body_Z * cos(Roll_A) * cos(Pitch_A);
-
-        DCM_BE = [cos(Pitch_A) * cos(Yaw_A) ...
-            (sin(Roll_A) * sin(Pitch_A) * cos(Yaw_A) - cos(Roll_A) * sin(Yaw_A)) ...
-            (cos(Roll_A) * sin(Pitch_A) * cos(Yaw_A) + sin(Roll_A) * sin(Yaw_A)); ...
-            ...
-            cos(Pitch_A) * sin(Yaw_A) ...
-            (sin(Roll_A) * sin(Pitch_A) * sin(Yaw_A) + cos(Roll_A) * cos(Yaw_A)) ...
-            (cos(Roll_A) * sin(Pitch_A) * sin(Yaw_A) - sin(Roll_A) * cos(Yaw_A)); ...
-            ...
-            - sin(Pitch_A) ...
-            sin(Roll_A) * cos(Pitch_A) ...
-            cos(Roll_A) * cos(Pitch_A)];
-
+            %VECTOR_BODY2EARTH Summary of this function goes here
+            %   Detailed explanation goes here
+            
+            % Earth_X = Body_X * cos(Pitch_A) * cos(Yaw_A) ...
+            %     + Body_Y * (sin(Roll_A) * sin(Pitch_A) * cos(Yaw_A) - cos(Roll_A) * sin(Yaw_A)) ...
+            %     + Body_Z * (cos(Roll_A) * sin(Pitch_A) * cos(Yaw_A) + sin(Roll_A) * sin(Yaw_A));
+            %
+            % Earth_Y = Body_X * cos(Pitch_A) * sin(Yaw_A) ...
+            %     + Body_Y * (sin(Roll_A) * sin(Pitch_A) * sin(Yaw_A) + cos(Roll_A) * cos(Yaw_A)) ...
+            %     + Body_Z * (cos(Roll_A) * sin(Pitch_A) * sin(Yaw_A) - sin(Roll_A) * cos(Yaw_A));
+            %
+            % Earth_Z = - Body_X * sin(Pitch_A) ...
+            %     + Body_Y * sin(Roll_A) * cos(Pitch_A) ...
+            %     + Body_Z * cos(Roll_A) * cos(Pitch_A);
+            
+            DCM_BE = [cos(Pitch_A) * cos(Yaw_A) ...
+                (sin(Roll_A) * sin(Pitch_A) * cos(Yaw_A) - cos(Roll_A) * sin(Yaw_A)) ...
+                (cos(Roll_A) * sin(Pitch_A) * cos(Yaw_A) + sin(Roll_A) * sin(Yaw_A)); ...
+                ...
+                cos(Pitch_A) * sin(Yaw_A) ...
+                (sin(Roll_A) * sin(Pitch_A) * sin(Yaw_A) + cos(Roll_A) * cos(Yaw_A)) ...
+                (cos(Roll_A) * sin(Pitch_A) * sin(Yaw_A) - sin(Roll_A) * cos(Yaw_A)); ...
+                ...
+                - sin(Pitch_A) ...
+                sin(Roll_A) * cos(Pitch_A) ...
+                cos(Roll_A) * cos(Pitch_A)];
+            
             Earth_XYZ = DCM_BE * [Body_X; Body_Y; Body_Z];
-
+            
             Earth_X = Earth_XYZ(1);
             Earth_Y = Earth_XYZ(2);
             Earth_Z = Earth_XYZ(3);
-        end 
+        end
         
         
         function [ realized_gain_theta, frequency ] = get_gain_theta(beam_pattern, theta, phi)
@@ -2142,7 +2152,7 @@ classdef HFSS_Tools
                 Gamma = (Zed - 1)./(Zed + 1);
             end
         end
-
+        
         
     end
     
@@ -2289,14 +2299,14 @@ classdef HFSS_Tools
             end
             hfss_script = [hfss_script, '  Array("Context:=", "Matlab Sphere"),  _ \n'];
             hfss_script = [hfss_script, '  Array("Theta:=", Array( "All"), "Phi:=", Array("All"), "Freq:=", Array("All")),  _ \n'];
-            hfss_script = [hfss_script, '  Array("X Component:=", "Theta", "Y Component:=", Array( "rEPhi", "rETheta", "RealizedGainPhi", "RealizedGainTheta")), Array() \n'];
+            hfss_script = [hfss_script, '  Array("X Component:=", "Theta", "Y Component:=", Array( "rEPhi", "rETheta")), Array() \n'];
             hfss_script = [hfss_script, ' \n'];
         end
         
         
         function [ hfss_script ] = DESIGNER_Add_Rad_Report(obj, hfss_script )
             %HFSS_ADD_RAD_REPORT generates the VB script to add a radiation report in HFSS
-  
+            
             hfss_script = [hfss_script, 'Set oModule = oDesign.GetModule("ReportSetup") \n'];
             hfss_script = [hfss_script, 'oModule.CreateReport "Matlab Table", "Far Field", "Data Table",  _ \n'];
             if isempty(obj.solution_sweep_fields)
@@ -2319,7 +2329,7 @@ classdef HFSS_Tools
             
             hfss_script = [hfss_script, '"F:=", Array("All")),  _ \n'];
             hfss_script = [hfss_script, 'Array("X Component:=", "Theta", "Y Component:=",  _ \n'];
-            hfss_script = [hfss_script, 'Array( "Ephi", "Etheta", "GainEPhiAccepted", "GainEThetaAccepted")), Array() \n'];
+            hfss_script = [hfss_script, 'Array( "Ephi", "Etheta")), Array() \n'];
         end
         
         
@@ -2394,7 +2404,7 @@ classdef HFSS_Tools
             hfss_script = [hfss_script, 'oModule.DeleteReports Array("Matlab Table") \n'];
             hfss_script = [hfss_script, ' \n'];
         end
-         
+        
         function [ hfss_script ] = HFSS_Save_Parameters(hfss_script, param_name, param_value, param_units )
             %HFSS_SAVE_PARAMETERS generates the VB script to set parameters in HFSS
             
@@ -2408,7 +2418,7 @@ classdef HFSS_Tools
             hfss_script = [hfss_script, 'Array("NAME:', param_name, '", "Value:=", "', num2str(param_value, 10), param_units, '")))) \n'];
             hfss_script = [hfss_script, ' \n'];
         end
-       
+        
     end
     
 end
