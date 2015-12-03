@@ -1,11 +1,11 @@
-% clear all;
-% close all;
+clear all;
+close all;
 
 global Opt_Data;
-% HFSS_Test = HFSS_Tools('testcell_forLen', 'ltcc_antenna', 1);
-% HFSS_Test = HFSS_Test.set_solution_setup('HFSS_Setup_1');
-% HFSS_Test = HFSS_Test.set_solution_sweep_freq('Sweep_2');
-% HFSS_Test = HFSS_Test.get_HFSS_parameters;
+HFSS_Test = HFSS_Tools('testcell_forLen', 'ltcc_antenna', 1);
+HFSS_Test = HFSS_Test.set_solution_setup('HFSS_Setup_1');
+HFSS_Test = HFSS_Test.set_solution_sweep_freq('Sweep_2');
+HFSS_Test = HFSS_Test.get_HFSS_parameters;
 Opt_Data.cost = [];
 Opt_Data.cost_min = [];
 Opt_Data.mesh_size = [];
