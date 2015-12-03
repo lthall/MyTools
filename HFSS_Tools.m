@@ -618,6 +618,7 @@ classdef HFSS_Tools
             
             if ~isempty(fig_no)
                 figure(fig_no)
+                clf
                 subplot(2,1,1);
                 hold on
                 plot(frequency/10^9,20*log10(abs(S)));
@@ -2338,7 +2339,8 @@ classdef HFSS_Tools
             
             file_name = strrep(file_name, '\', '/');
             
-            hfss_script = [hfss_script, 'oDesign.ExportNetworkData '];
+            hfss_script = [hfss_script, 'Set oModule = oDesign.GetModule("Solutions") \n'];
+            hfss_script = [hfss_script, 'oModule.ExportNetworkData '];
             hfss_script = [hfss_script, '"", _\n'];
             if isempty(obj.solution_sweep_freq)
                 hfss_script = [hfss_script, sprintf(' Array("%s:LastAdaptive"), ', obj.solution_setup)];
