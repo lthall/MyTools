@@ -21,7 +21,7 @@ HFSS_Test = HFSS_Test.import_S_parameters;
 
 % freq_pnt_L = find(frequency >= 59e9, 1);
 % freq_pnt_U = find(frequency >= 61e9, 1);
-cost = max(dBv(S));
+cost = max(HFSS_Test.dBv(S));
 if isempty(Opt_Data.cost_min) || cost < Opt_Data.cost_min(end)
     Opt_Data.cost_min(end+1) = cost;
     Opt_Data.HFSS_Best = HFSS_Test;
