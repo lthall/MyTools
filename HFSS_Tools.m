@@ -227,46 +227,41 @@ classdef HFSS_Tools
             else
                 hfss_script = [];
                 [ hfss_script ] = obj.HFSS_Open( hfss_script );
+                file_name = [pwd,'\param_', obj.project_name, '_', obj.active_design, '.', 'txt'];
+                [ hfss_script ] = obj.HFSS_Get_Parameters( hfss_script, file_name );
                 fileID = fopen('run_me_get_param.vbs', 'w');
                 fprintf(fileID, hfss_script);
                 fclose(fileID);
                 system('run_me_get_param.vbs');
+            end            
+            FID = fopen([file_name]);
+            if FID == -1
+                error('You got the file name wrong');
             end
             
-            questdlg('Right click HFSS parameters and copy to clipboard. Then press OK.', 'Click when ready', 'OK', 'OK');
-            parameter_string = clipboard('paste');
-            param_data = textscan(parameter_string, '%s', 'delimiter','\n');
-            tab = sprintf('\t');
-            obj.parameter_list = [];
-            for aa = 2:length(param_data{1})
-                line_data = param_data{1}(aa);
-                tab_pnt = [];
-                for bb = 1:length(line_data{1})
-                    if strcmp(tab,line_data{1}(bb))
-                        tab_pnt(end+1) = bb;
-                    end
-                end
-                obj.parameter_list(aa-1).name = line_data{1}(1:tab_pnt(1)-1);
+            input_Line = fgetl(FID);
+            
+            par_pnt = 0;
+            while input_Line ~= -1;
+                pnts = strfind(input_Line, '"');
+                par_pnt = par_pnt + 1;
+                obj.parameter_list(par_pnt).name = input_Line(pnts(1):pnts(2));
                 
-                if strcmp(line_data{1}(tab_pnt(1)+1), '"')
-                    obj.parameter_list(aa-1).type = 'eqn';
+                input_value = input_Line(pnts(3)+1:pnts(4)-1);
+                if (max(input_value == '+') || max(input_value == '-') || max(input_value == '*') || max(input_value == '/') || max(input_value == '(') || max(input_value == ')'))
+                    obj.parameter_list(par_pnt).type = 'eqn';
+                    obj.parameter_list(par_pnt).value = input_value;
+                    obj.parameter_list(par_pnt).units = '';
                 else
-                    obj.parameter_list(aa-1).type = 'var';
+                    obj.parameter_list(par_pnt).type = 'var';
+                    value_read = textscan(input_value, '%f%s');
+                    obj.parameter_list(par_pnt).value = value_read{1};
+                    obj.parameter_list(par_pnt).units = value_read{2};
                 end
                 
-                line_pnt_start_unit = tab_pnt(3)+1;
-                while ~isletter(line_data{1}(line_pnt_start_unit))
-                    line_pnt_start_unit = line_pnt_start_unit + 1;
-                end
-                value_read = textscan(line_data{1}(tab_pnt(3)+1:line_pnt_start_unit-1), '%f');
-                obj.parameter_list(aa-1).value = abs(value_read{1});
-                if tab_pnt(4) > line_pnt_start_unit
-                    value_read = textscan(line_data{1}(line_pnt_start_unit:tab_pnt(4)-1), '%s');
-                    obj.parameter_list(aa-1).units = value_read{1}{1};
-                else
-                    obj.parameter_list(aa-1).units = 'none';
-                end
+                input_Line = fgetl(FID);
             end
+            fclose(FID);
         end
         
         
@@ -2405,6 +2400,23 @@ classdef HFSS_Tools
             
             hfss_script = [hfss_script, 'oModule.DeleteReports Array("Matlab Table") \n'];
             hfss_script = [hfss_script, ' \n'];
+        end
+        
+        function [ hfss_script ] = HFSS_Get_Parameters(hfss_script, file_name )
+            %HFSS_OPEN generates the VB script to select a project and design in HFSS
+            
+            file_name = strrep(file_name, '\', '/');
+            hfss_script = [hfss_script, 'variables = oDesign.GetVariables() \n'];
+            hfss_script = [hfss_script, 'variable_values = oDesign.GetVariables() \n'];
+            hfss_script = [hfss_script, 'For i = 0 To UBound( variables ) \n'];
+            hfss_script = [hfss_script, '     variable_values(i) = oDesign.GetVariableValue(variables(i)) \n'];
+            hfss_script = [hfss_script, 'Next \n'];
+            hfss_script = [hfss_script, 'Set objFSO=CreateObject("Scripting.FileSystemObject") \n'];
+            hfss_script = [hfss_script, 'outFile="', file_name, '" \n'];
+            hfss_script = [hfss_script, 'Set objFile = objFSO.CreateTextFile(outFile,True) \n'];
+            hfss_script = [hfss_script, 'For i = 0 To UBound( variables ) \n'];
+            hfss_script = [hfss_script, '	objFile.Write chr(34) & variables(i) & chr(34) & ", " & chr(34) & variable_values(i) & chr(34) & vbCrLf \n'];
+            hfss_script = [hfss_script, 'Next \n'];
         end
         
         function [ hfss_script ] = HFSS_Save_Parameters(hfss_script, param_name, param_value, param_units )
