@@ -245,7 +245,7 @@ classdef HFSS_Tools
             while input_Line ~= -1;
                 pnts = strfind(input_Line, '"');
                 par_pnt = par_pnt + 1;
-                obj.parameter_list(par_pnt).name = input_Line(pnts(1):pnts(2));
+                obj.parameter_list(par_pnt).name = input_Line(pnts(1)+1:pnts(2)-1);
                 
                 input_value = input_Line(pnts(3)+1:pnts(4)-1);
                 if (max(input_value == '+') || max(input_value == '-') || max(input_value == '*') || max(input_value == '/') || max(input_value == '(') || max(input_value == ')'))
@@ -363,7 +363,7 @@ classdef HFSS_Tools
             %LIST_PARAMETERS outputs a list of all variables
             
             for aa = 1:length(obj.parameter_list)
-                fprintf([obj.parameter_list(aa).name, '\t Value: ', num2str(obj.parameter_list(aa).value), '\t Units: ', obj.parameter_list(aa).units, '\t Type: ', obj.parameter_list(aa).type, '\n']);
+                disp([obj.parameter_list(aa).name, '\t Value: ', num2str(obj.parameter_list(aa).value), '\t Units: ', obj.parameter_list(aa).units, '\t Type: ', obj.parameter_list(aa).type, '\n']);
             end
         end
         
